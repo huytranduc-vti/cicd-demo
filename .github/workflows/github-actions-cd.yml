@@ -19,8 +19,9 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
-      contents: read
+      contents: write
       pull-requests: write
+      issues: write
 
     timeout-minutes: 20
     steps:
