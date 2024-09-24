@@ -13,15 +13,12 @@ on:
       - '.github/workflows/**'
   workflow_dispatch:
 
-permissions: 
-  id-token: write
-  contents: read
-
 jobs:
   cd:
     runs-on: ubuntu-latest
     permissions:
-      pull-requests: write
+      id-token: write
+      contents: read
     timeout-minutes: 20
     steps:
       - run: cat $GITHUB_EVENT_PATH
@@ -55,7 +52,7 @@ jobs:
           echo "name=${repo}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "${GITHUB_OUTPUT}"
 
       - name: get ENV
-        run: echo ${{ env.ROLE_TO_ASSUME }}
+        run: env
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
