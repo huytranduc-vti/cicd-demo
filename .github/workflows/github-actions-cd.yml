@@ -13,9 +13,6 @@ on:
       - '.github/workflows/**'
   workflow_dispatch:
 
-permissions: 
-  pull-requests: write
-
 jobs:
   cd:
     environment: 'dev'
@@ -23,6 +20,8 @@ jobs:
     permissions:
       id-token: write
       contents: read
+      pull-requests: write
+
     timeout-minutes: 20
     steps:
       - run: cat $GITHUB_EVENT_PATH
