@@ -15,6 +15,7 @@ on:
 
 jobs:
   cd:
+    environment: 'dev'
     runs-on: ubuntu-latest
     permissions:
       id-token: write
