@@ -1,0 +1,100 @@
+name: cd
+
+run-name: ${{ github.actor }} is testing out GitHub Actions 🚀
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+    paths-ignore:
+      - '**/*.md'
+      - 'cypress/**'
+      - '.github/workflows/**'
+  workflow_dispatch:
+
+jobs:
+  cd:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions: 
+      id-token: write
+      contents: write
+      pull-requests: write
+  
+    steps:
+      - run: cat $GITHUB_EVENT_PATH
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: 22
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: generate tag name
+        run: |
+          export TAG_NAME=$(node -p 'require("./package.json").version')
+          echo "TAG_NAME=$TAG_NAME" >> $GITHUB_ENV
+        
+      - name: check tag existence
+        if: github.ref_name == 'release-prd' || github.base_ref == 'release-prd'
+        id: tag_existence
+        run: |
+          ! git ls-remote --tags | grep refs/tags/${{ env.TAG_NAME }}
+        
+      - name: Generate session name
+        id: session
+        run: |
+          repo="${GITHUB_REPOSITORY#${GITHUB_REPOSITORY_OWNER}/}"
+          echo "name=${repo}-${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "${GITHUB_OUTPUT}"
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.ROLE_TO_ASSUME }}
+          role-session-name: ${{ steps.session.outputs.name }}
+          aws-region: ap-northeast-1
+
+      # Generate version from package.json and commit SHA
+      - name: Generate version tag
+        id: generate-tag
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          TAG_NAME_IMAGE="$VERSION-$SHORT_SHA"
+          echo "TAG_NAME_IMAGE=$TAG_NAME_IMAGE" >> $GITHUB_ENV
+
+      # ECR login
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      # Docker
+
+      - name: Build, tag, and push docker image to Amazon ECR
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          REPOSITORY: ${{ env.REPOSITORY }}
+          IMAGE_TAG: ${{ env.TAG_NAME_IMAGE }}
+        run: |
+          docker build -t ${{ steps.login-ecr.outputs.registry }}/${{ env.REPOSITORY }}:${{ env.IMAGE_TAG }} .
+          docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.REPOSITORY }}:${{ env.IMAGE_TAG }}
+
+      # Optional: Tag 'latest' for the image
+      - name: Tag and push latest
+        run: |
+          docker tag ${{ steps.login-ecr.outputs.registry }}/${{ env.REPOSITORY }}:${{ env.IMAGE_TAG }} ${{ steps.login-ecr.outputs.registry }}/${{ env.REPOSITORY }}:latest
+          docker push ${{ steps.login-ecr.outputs.registry }}/${{ env.REPOSITORY }}:latest
+
+      # Tag for release
+
+      - name: generate tag
+        run: |
+          git tag ${{ env.TAG_NAME }}
+          git push origin ${{ env.TAG_NAME }}
