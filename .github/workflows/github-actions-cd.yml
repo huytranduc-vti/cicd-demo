@@ -91,7 +91,7 @@ jobs:
       # Optional: Tag 'latest' for the image
       - name: Tag and push latest
         run: |
-          docker tag ${{ steps.login-ecr.outputs.registry }}/${{ vars.REPOSITORY }}:${{ env.IMAGE_TAG }} ${{ steps.login-ecr.outputs.registry }}/${{ vars.REPOSITORY }}:latest
+          docker tag ${{ steps.login-ecr.outputs.registry }}/${{ vars.REPOSITORY }}:${{ env.TAG_NAME_IMAGE }} ${{ steps.login-ecr.outputs.registry }}/${{ vars.REPOSITORY }}:latest
           docker push ${{ steps.login-ecr.outputs.registry }}/${{ vars.REPOSITORY }}:latest
 
       # Tag for release
